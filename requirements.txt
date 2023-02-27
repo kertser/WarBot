@@ -4,10 +4,12 @@ bs4
 transformers
 scikit-learn
 tensorboardX
-sentencepiece # summaruization
-autocorrect # spelling
-normalizer
-textwrap3 #??
-# pip install git+https://github.com/RussianNLP/russian_paraphrasers@master
+#gradio
+schedule
+tqdm
+pyspellchecker
+paramiko
+pymysql
+sshtunnel
 #pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
 #pip install torch==1.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117

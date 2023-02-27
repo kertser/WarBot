@@ -80,7 +80,7 @@ def collectDataFromPage(url):
     except:
       pass
 
-def compare_pages(url1, url2):
+def compare_pages(url1, url2): #obsolete
     page1 = requests.get(url1).text
     page2 = requests.get(url2).text
     # Stupid, but must be working

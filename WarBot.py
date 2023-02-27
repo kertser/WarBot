@@ -1,3 +1,5 @@
+# Main library for WarBot
+
 from transformers import AutoTokenizer ,AutoModelForCausalLM
 import re
 # Speller and punctuation:
@@ -6,7 +8,7 @@ import yaml
 import torch
 from torch import package
 # not very necessary
-import textwrap
+#import textwrap
 from textwrap3 import wrap
 
 # util function to get expected len after tokenizing
@@ -38,6 +40,9 @@ def removeSigns(S):
     return S
 
 def prepare_punct():
+    # Prepare the Punctuation Model
+    # Important! Enable for Unix version (python related)
+    # torch.backends.quantized.engine = 'qnnpack'
     torch.hub.download_url_to_file('https://raw.githubusercontent.com/snakers4/silero-models/master/models.yml',
                                    'latest_silero_models.yml',
                                    progress=False)
@@ -74,10 +79,14 @@ def initialize():
 def split_string(string,n=256):
     return [string[i:i+n] for i in range(0, len(string), n)]
 
-def get_response(quote:str,model,tokenizer,model_punct):
+def get_response(quote:str,model,tokenizer,model_punct,temperature=0.2):
     # encode the input, add the eos_token and return a tensor in Pytorch
-    user_inpit_ids = tokenizer.encode(f"|0|{get_length_param(quote, tokenizer)}|" \
-                                                  + quote + tokenizer.eos_token, return_tensors="pt")
+    try:
+        user_inpit_ids = tokenizer.encode(f"|0|{get_length_param(quote, tokenizer)}|" \
+                                                      + quote + tokenizer.eos_token, return_tensors="pt")
+        # Better to force the lenparameter to be = {2}
+    except:
+        return "Exception in tokenization" # Exception in tokenization
 
     chat_history_ids = user_inpit_ids # To be changed
 
@@ -87,22 +96,22 @@ def get_response(quote:str,model,tokenizer,model_punct):
     else:
         no_repeat_ngram_size = 1
 
-    output_id = model.generate(
-                chat_history_ids,
-                num_return_sequences=1, # use for more variants, but have to print [i]
-                max_length=200, #512
-                no_repeat_ngram_size=no_repeat_ngram_size, #3
-                do_sample=True, #True
-                top_k=50,#50
-                top_p=0.9, #0.9
-                temperature = 0.4, # was 0.6, 0 for greedy
-                #mask_token_id=tokenizer.mask_token_id,
-                eos_token_id=tokenizer.eos_token_id,
-                #unk_token_id=tokenizer.unk_token_id,
-                pad_token_id=tokenizer.pad_token_id,
-                #pad_token_id=tokenizer.eos_token_id,
-                #device='cpu'
-            )
+    try:
+        output_id = model.generate(
+                    chat_history_ids,
+                    num_return_sequences=1, # use for more variants, but have to print [i]
+                    max_length=200, #512
+                    no_repeat_ngram_size=no_repeat_ngram_size, #3
+                    do_sample=True, #True
+                    top_k=50,#50
+                    top_p=0.9, #0.9
+                    temperature = temperature, # was 0.6, 0 for greedy
+                    eos_token_id=tokenizer.eos_token_id,
+                    pad_token_id=tokenizer.pad_token_id,
+                    #device='cpu'
+                )
+    except:
+        return "Exception" # Exception in generation
 
     response = tokenizer.decode(output_id[0], skip_special_tokens=True)
     response = removeSigns(response)
@@ -115,18 +124,33 @@ def get_response(quote:str,model,tokenizer,model_punct):
     if len(response)>200:
         resps = wrap(response,200)
         for i in range(len(resps)):
-            resps[i] = model_punct.enhance_text(resps[i], lan='ru')
-            response = ''.join(resps)
+            try:
+                resps[i] = model_punct.enhance_text(resps[i], lan='ru')
+                response = ''.join(resps)
+            except:
+                return "" # Excepion in punctuation
     else:
         response = model_punct.enhance_text(response, lan='ru')
 
+    # Immanent postprocessing of the response
     response = re.sub(r'[UNK]', '', response)  # Remove the [UNK] thing
+    response = re.sub(r',+', ',', response)  # Replace multi-commas with single one
+    response = re.sub(r'-+', ',', response)  # Replace multi-dashes with single one
+    response = re.sub(r'\.\?', '?', response)  # Fix the .? issue
+    response = re.sub(r'\,\?', '?', response)  # Fix the ,? issue
+    response = re.sub(r'\.\!', '!', response)  # Fix the .! issue
+    response = re.sub(r'\.\,', ',', response)  # Fix the ,. issue
+    response = re.sub(r'\.\)', '.', response)  # Fix the .) issue
+    response = response.replace('[]', '') # Fix the [] issue
+
     return response
 
-#if __name__ == '__main__':
-    #model,tokenizer,model_punct = initialize()
-    #quote = "Это хорошо, но глядя на ролик, когда ефиопские толпы в Израиле громят машины и нападают на улице на израильтян - задумаешься, куда все движется"
-    #print('please wait...')
-    #response = wrap(get_response(quote,model,tokenizer,model_punct),60)
-    #for phrase in response:
-    #    print(phrase)
+if __name__ == '__main__':
+    """
+    quote = "Здравствуй, Жопа, Новый Год, выходи на ёлку!"
+    model, tokenizer, model_punct = initialize()
+    response = ""
+    while not response:
+        response = get_response(quote, model, tokenizer, model_punct,temperature=0.2)
+    print(response)
+    """

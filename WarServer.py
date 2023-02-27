@@ -1,9 +1,13 @@
+# WarServer - replace HOST with 'localhost' for local testing
 import socket
 import WarBot
 
+import warnings
+warnings.filterwarnings("ignore")
+
 model,tokenizer,model_punct = WarBot.initialize()
 
-HOST = 'localhost'
+HOST = '10.0.0.125'
 PORT = 5000
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
@@ -18,7 +22,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             received_string = data.decode()
             print(f'Received string from client: {received_string}')
 
-            response = WarBot.get_response(received_string, model, tokenizer, model_punct)
+            response = ""
+            while not response:
+                response = WarBot.get_response(received_string, model, tokenizer, model_punct, temperature=0.6)
+
             response_string = response
 
             conn.sendall(response_string.encode())
